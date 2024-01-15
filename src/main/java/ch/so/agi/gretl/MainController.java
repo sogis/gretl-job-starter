@@ -7,7 +7,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Base64;
-import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,19 +39,20 @@ public class MainController {
     }
     
     @GetMapping("/start")    
-    public ResponseEntity<?> startGretlJob(@RequestParam Map<String, String> queryParameters) {
-        String userName = queryParameters.get(PARAM_USER);
-        String token = queryParameters.get(PARAM_TOKEN);
-        String jobName = queryParameters.get(PARAM_JOB_NAME);
-
-        logger.info(appConfig.getJenkinsUrl().toString());
+    public ResponseEntity<?> startGretlJob(@RequestParam("user") String userName, @RequestParam("token") String token, @RequestParam("job") String jobName) {        
+        // Wir verwenden momentan immer nur Prod-GRETL-Jenkins.
+        String gretlUrl = appConfig.getJenkinsUrl().stream()
+            .filter(g -> g.get("env").equalsIgnoreCase("prod"))
+            .findAny()
+            .map(g -> g.get("url"))
+            .map(g -> g.replace("${jobName}", jobName))
+            .orElseThrow();
+        logger.debug("GRETL Jenkins url: {}", gretlUrl);
+                
+        String encodedUserToken = Base64.getEncoder().encodeToString((userName+":"+token).getBytes());
+        logger.debug("Encoded user token: {}", encodedUserToken);
         
-        
-        String encodedUserToken = Base64.getEncoder().encodeToString("xxxx:yyyyy".getBytes());
-        logger.info(encodedUserToken);
-        
-        URI requestUri = URI.create("https://xxxxxx/job/agi_dummy/build");
-
+        URI requestUri = URI.create(gretlUrl);
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
         requestBuilder.POST(HttpRequest.BodyPublishers.noBody()).uri(requestUri);
         HttpRequest request = requestBuilder
@@ -68,31 +68,21 @@ public class MainController {
             throw new IllegalStateException(e.getMessage());
         }
         int statusCode = response.statusCode();
-        logger.info("{}", statusCode);
+        logger.debug("Status code: {}", statusCode);
         
         if (statusCode != 201) {
             String errorMessage = "Job not started. Status code: " + String.valueOf(statusCode) + ". Request: " + requestUri.toString();
+            logger.error(errorMessage);
             throw new IllegalStateException(errorMessage);            
         }
         
         String location = response.headers().firstValue("location").get();
-        logger.info("{}", location);
-
+        logger.debug("Location header: {}", location);
         
-        
-        
-        
-        String body = response.body();
-        logger.info(body);
-        
-        //String contentType = response.headers().firstValue("content-type").orElse("text/plain");
-
+        String locationUri = requestUri.toString().substring(0, requestUri.toString().lastIndexOf("/"));
+        logger.debug("Location url: {}", locationUri);
         HttpHeaders httpHeaders = new HttpHeaders();
-        httpHeaders.setLocation(URI.create("https://xxxxx/job/agi_dummy"));
+        httpHeaders.setLocation(URI.create(locationUri));
         return new ResponseEntity<>(httpHeaders, HttpStatus.SEE_OTHER);        
     }
-
-    
-    
-
 }
