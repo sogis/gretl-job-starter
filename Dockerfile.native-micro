@@ -1,0 +1,17 @@
+FROM quay.io/quarkus/quarkus-micro-image:2.0
+
+ARG UID=1001
+ENV HOME=/app
+
+WORKDIR $HOME
+
+COPY build/native/nativeCompile/jobstarter ./application
+
+RUN chown $UID:0 . && \
+    chmod 0775 . && \
+    ls -la
+
+EXPOSE 8080
+USER $UID
+
+ENTRYPOINT ["./application"]

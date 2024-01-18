@@ -22,10 +22,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class MainController {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    private static final String PARAM_USER = "user";
-    private static final String PARAM_TOKEN = "token";
-    private static final String PARAM_JOB_NAME = "job";
-
     @Autowired
     HttpClient httpClient;
     
@@ -40,7 +36,7 @@ public class MainController {
     
     @GetMapping("/start")    
     public ResponseEntity<?> startGretlJob(@RequestParam("user") String userName, @RequestParam("token") String token, @RequestParam("job") String jobName) {        
-        // Wir verwenden momentan immer nur Prod-GRETL-Jenkins.
+        // Wir verwenden momentan immer Prod-GRETL-Jenkins.
         String gretlUrl = appConfig.getJenkinsUrl().stream()
             .filter(g -> g.get("env").equalsIgnoreCase("prod"))
             .findAny()
@@ -50,7 +46,7 @@ public class MainController {
         logger.debug("GRETL Jenkins url: {}", gretlUrl);
                 
         String encodedUserToken = Base64.getEncoder().encodeToString((userName+":"+token).getBytes());
-        logger.debug("Encoded user token: {}", encodedUserToken);
+        logger.debug("Encoded name and token: {}", encodedUserToken);
         
         URI requestUri = URI.create(gretlUrl);
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
