@@ -27,6 +27,9 @@ public class MainController {
     
     @Autowired
     AppConfig appConfig;
+    
+    @Autowired
+    JenkinsService jenkinsService;
 
     @GetMapping("/ping")
     public ResponseEntity<String>  ping() {
@@ -48,37 +51,17 @@ public class MainController {
         String encodedUserToken = Base64.getEncoder().encodeToString((userName+":"+token).getBytes());
         logger.debug("Encoded name and token: {}", encodedUserToken);
         
-        URI requestUri = URI.create(gretlUrl);
-        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
-        requestBuilder.POST(HttpRequest.BodyPublishers.noBody()).uri(requestUri);
-        HttpRequest request = requestBuilder
-                .timeout(Duration.ofSeconds(30L))
-                .setHeader("Authorization", "Basic " + encodedUserToken)
-                .build();
-       
-        HttpResponse<String> response;
-        try {
-            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-            throw new IllegalStateException(e.getMessage());
-        }
-        int statusCode = response.statusCode();
-        logger.debug("Status code: {}", statusCode);
+        JenkinsRequestResult result = jenkinsService.makeHttpRequest(gretlUrl, encodedUserToken);
+        logger.debug("Status code: {}", result.statusCode());
         
-        if (statusCode != 201) {
-            String errorMessage = "Job not started. Status code: " + String.valueOf(statusCode) + ". Request: " + requestUri.toString();
+        if (result.statusCode() != 201) {
+            String errorMessage = "Job not started. Status code: " + String.valueOf(result.statusCode()) + ". Request: " + result.requestUri();
             logger.error(errorMessage);
             throw new IllegalStateException(errorMessage);            
         }
         
-        String location = response.headers().firstValue("location").get();
-        logger.debug("Location header: {}", location);
-        
-        String locationUri = requestUri.toString().substring(0, requestUri.toString().lastIndexOf("/"));
-        logger.debug("Location url: {}", locationUri);
         HttpHeaders httpHeaders = new HttpHeaders();
-        httpHeaders.setLocation(URI.create(locationUri));
+        httpHeaders.setLocation(URI.create(result.locationUri()));
         return new ResponseEntity<>(httpHeaders, HttpStatus.SEE_OTHER);        
     }
 }
