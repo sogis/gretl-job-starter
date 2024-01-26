@@ -23,7 +23,6 @@ public class JenkinsService {
     }
     
     public JenkinsRequestResult makeHttpRequest(String url, String encodedUserToken) {
-        System.out.println("url: " + url);
         URI requestUri = URI.create(url);
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
         requestBuilder.POST(HttpRequest.BodyPublishers.noBody()).uri(requestUri);

@@ -35,9 +35,6 @@ public class MainController {
     
     @GetMapping("/start")    
     public ResponseEntity<?> startGretlJob(@RequestParam("user") String userName, @RequestParam("token") String token, @RequestParam("job") String jobName) {        
-        
-        System.err.println("**************************************************");
-        
         // Wir verwenden momentan immer Prod-GRETL-Jenkins.
         String gretlUrl = appConfig.getJenkinsUrl().stream()
             .filter(g -> g.get("env").equalsIgnoreCase("prod"))
@@ -61,8 +58,6 @@ public class MainController {
         
         HttpHeaders httpHeaders = new HttpHeaders();
         httpHeaders.setLocation(URI.create(result.locationUri()));
-        System.out.println(httpHeaders);
         return new ResponseEntity<>(httpHeaders, HttpStatus.SEE_OTHER);        
-        //return new ResponseEntity<>(httpHeaders, HttpStatus.OK);        
     }
 }
