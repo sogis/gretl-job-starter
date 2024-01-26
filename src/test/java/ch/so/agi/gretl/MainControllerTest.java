@@ -1,42 +1,65 @@
 package ch.so.agi.gretl;
 
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.net.HttpURLConnection;
+
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.web.client.RestTemplate;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
+
+@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("test")
 public class MainControllerTest {
-    
-    @Autowired
-    MockMvc mockMvc;
 
-    @Autowired
-    JenkinsService jenkinsService;
+    @LocalServerPort
+    private int port;
     
+    private MockWebServer mockWebServer;
+
+    @BeforeEach
+    public void setup() throws IOException {
+        this.mockWebServer = new MockWebServer();
+        this.mockWebServer.start(9999);
+    }
     
-    // TODO
-    // Ich brauche noch sowas: https://github.com/edigonzales/oereb-cts/blob/main/lib/src/test/java/ch/so/agi/oereb/cts/GetCapabilitiesProbeTest.java
-    // Man müsste/könnte es wahrscheinlich eleganter lösen. Aber wie? Ich möchte einfach einen fake return value von der Service-Klasse.
-//    @Test
-//    void testControllerWithHttpRequest() throws Exception {
-//        // Mock the behavior of the service
-//        JenkinsRequestResult mockedResponse = new JenkinsRequestResult("arequest", 201, "redirect-url");
-//        when(jenkinsService.makeHttpRequest("http://google.com", "my-token")).thenReturn(mockedResponse);
-//
-//        // Perform the request and assert the response
-//        mockMvc.perform(get("/ping"))
-//                .andExpect(status().isOk())
-//                .andExpect(content().string("gretl-job-starter"));
-//    }
+    // Dünkt mich noch nicht endzeitgeil.
+    // Auch sollte man TestRestTemplate verwenden.
+    @Test
+    void testControllerWithHttpRequest() throws Exception {
+        
+        RestTemplate restTemplate = new RestTemplate(new SimpleClientHttpRequestFactory() {
+            @Override
+            protected void prepareConnection(HttpURLConnection connection, String httpMethod) {
+                connection.setInstanceFollowRedirects(false);
+            }
+        });
+
+        MockResponse mockResponse = new MockResponse()
+                .addHeader("Location", "http://"+mockWebServer.getHostName()+":"+mockWebServer.getPort()+"/queue/item/123/")
+                .setResponseCode(201);
+
+        mockWebServer.enqueue(mockResponse);
+        mockWebServer.url("/job/agi_dummy/build");
+
+        ResponseEntity<String> responseEntity = restTemplate.exchange(
+                "http://localhost:" + port + "/start?job=agi_dummy&user=agiuser1&token=xxx111yyy222zzz333",
+                HttpMethod.GET,
+                null,
+                String.class
+        );
+
+        assertTrue(responseEntity.getStatusCode().is3xxRedirection());        
+    }    
 }
