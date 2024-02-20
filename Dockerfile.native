@@ -1,8 +1,9 @@
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.9
+FROM bellsoft/alpaquita-linux-base:stream-glibc
 
 ARG UID=1001
-ENV HOME=/app
+RUN adduser -S gretljobstarter -u $UID
 
+ENV HOME=/app
 WORKDIR $HOME
 
 COPY build/native/nativeCompile/jobstarter ./application
@@ -11,7 +12,7 @@ RUN chown $UID:0 . && \
     chmod 0775 . && \
     ls -la
 
-EXPOSE 8080
 USER $UID
+EXPOSE 8080
 
-ENTRYPOINT ["./application"]
+CMD ["./application"]
