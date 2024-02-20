@@ -1,0 +1,17 @@
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.9
+
+ARG UID=1001
+ENV HOME=/app
+
+WORKDIR $HOME
+
+COPY build/native/nativeCompile/jobstarter ./application
+
+RUN chown $UID:0 . && \
+    chmod 0775 . && \
+    ls -la
+
+EXPOSE 8080
+USER $UID
+
+ENTRYPOINT ["./application"]
