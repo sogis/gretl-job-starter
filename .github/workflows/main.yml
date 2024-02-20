@@ -75,7 +75,8 @@ jobs:
         with:
           platforms: linux/amd64
           context: .
-          file: Dockerfile.native-micro
+          #file: Dockerfile.native-micro
+          file: Dockerfile.native
           #labels: ${{ steps.meta.outputs.labels }}
           pull: true
           push: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') && !env.ACT }}
