@@ -27,6 +27,13 @@ dependencies {
     testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
 }
 
+nativeBuild {
+    verbose = true
+    fallback = false
+    buildArgs.add("-march=native")
+}
+
+
 tasks.named('test') {
     useJUnitPlatform()
 }
