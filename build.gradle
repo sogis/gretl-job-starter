@@ -28,7 +28,6 @@ dependencies {
 }
 
 nativeBuild {
-    verbose = true
     fallback = false
     buildArgs.add("-march=native")
 }
