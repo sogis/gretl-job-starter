@@ -27,10 +27,23 @@ dependencies {
     testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
 }
 
-nativeBuild {
-    fallback = false
-    buildArgs.add("-march=native")
+/*
+graalvmNative {
+    binaries {
+        main {
+        buildArgs.add("-march=compatibility")
+    }
 }
+*/
+graalvmNative {
+    binaries {
+        main {
+            verbose = true 
+            buildArgs.add("-march=compatibility")
+        }
+    }
+}
+
 
 
 tasks.named('test') {
