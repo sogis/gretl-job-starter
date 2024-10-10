@@ -30,7 +30,7 @@ public class MainController {
     @GetMapping("/ping")
     public ResponseEntity<String>  ping() {
         logger.info("ping");
-        return new ResponseEntity<String>("gretl-job-starter test", HttpStatus.OK);
+        return new ResponseEntity<String>("gretl-job-starter", HttpStatus.OK);
     }
     
     @GetMapping("/start")    
