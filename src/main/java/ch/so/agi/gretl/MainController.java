@@ -53,20 +53,18 @@ public class MainController {
         if (result.statusCode() != 201) {
             String errorMessage;
             switch (result.statusCode()) {
-                case 401:
-                    // Unauthorized
-                    errorMessage = "Unauthorized! Please check user name and api token.";
+                case 401:   // Unauthorized
+                    errorMessage = "FEHLER: Keine Berechtigung! Bitte überprüfen Sie Benutzernamen und API-Token. \n\nBei Fragen wenden Sie sich bitte ans AGI.";
                     break;
-                case 404:
-                    // Not Found
-                    errorMessage = "Job name not found! Please check the job name.";
+                case 404:   // Not Found
+                    errorMessage = "FEHLER: Jobname unbekannt! Bitte überprüfen Sie den Jobnamen. \n\nBei Fragen wenden Sie sich bitte ans AGI.";
                     break;
                 default:
-                    errorMessage = "Job not started. Status code: " + String.valueOf(result.statusCode()) + ". Request: " + result.requestUri();
+                    errorMessage = "FEHLER: Job konnte nicht gestartet werden. \n\nBitte wenden Sie sich ans AGI.";
                     break;
             }
 
-            logger.error(errorMessage);
+            logger.error(errorMessage + "\nStatus code: " + String.valueOf(result.statusCode()) + ". Request: " + result.requestUri());
             return ResponseEntity.ok(errorMessage);
         }
 
