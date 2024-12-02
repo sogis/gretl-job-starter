@@ -20,10 +20,10 @@ public class MainController {
 
     @Autowired
     HttpClient httpClient;
-    
+
     @Autowired
     AppConfig appConfig;
-    
+
     @Autowired
     JenkinsService jenkinsService;
 
@@ -32,9 +32,9 @@ public class MainController {
         logger.info("ping");
         return new ResponseEntity<String>("gretl-job-starter", HttpStatus.OK);
     }
-    
-    @GetMapping("/start")    
-    public ResponseEntity<?> startGretlJob(@RequestParam("user") String userName, @RequestParam("token") String token, @RequestParam("job") String jobName) {        
+
+    @GetMapping("/start")
+    public ResponseEntity<?> startGretlJob(@RequestParam("user") String userName, @RequestParam("token") String token, @RequestParam("job") String jobName) {
         // Wir verwenden momentan immer Prod-GRETL-Jenkins.
         String gretlUrl = appConfig.getJenkinsUrl().stream()
             .filter(g -> g.get("env").equalsIgnoreCase("prod"))
@@ -43,21 +43,35 @@ public class MainController {
             .map(g -> g.replace("${jobName}", jobName))
             .orElseThrow();
         logger.debug("GRETL Jenkins url: {}", gretlUrl);
-                
+
         String encodedUserToken = Base64.getEncoder().encodeToString((userName+":"+token).getBytes());
         logger.debug("Encoded name and token: {}", encodedUserToken);
-        
+
         JenkinsRequestResult result = jenkinsService.makeHttpRequest(gretlUrl, encodedUserToken);
         logger.debug("Status code: {}", result.statusCode());
-        
+
         if (result.statusCode() != 201) {
-            String errorMessage = "Job not started. Status code: " + String.valueOf(result.statusCode()) + ". Request: " + result.requestUri();
+            String errorMessage;
+            switch (result.statusCode()) {
+                case 401:
+                    // Unauthorized
+                    errorMessage = "Unauthorized! Please check user name and api token.";
+                    break;
+                case 404:
+                    // Not Found
+                    errorMessage = "Job name not found! Please check the job name.";
+                    break;
+                default:
+                    errorMessage = "Job not started. Status code: " + String.valueOf(result.statusCode()) + ". Request: " + result.requestUri();
+                    break;
+            }
+
             logger.error(errorMessage);
-            throw new IllegalStateException(errorMessage);            
+            return ResponseEntity.ok(errorMessage);
         }
-        
+
         HttpHeaders httpHeaders = new HttpHeaders();
         httpHeaders.setLocation(URI.create(result.locationUri()));
-        return new ResponseEntity<>(httpHeaders, HttpStatus.SEE_OTHER);        
+        return new ResponseEntity<>(httpHeaders, HttpStatus.SEE_OTHER);
     }
 }
