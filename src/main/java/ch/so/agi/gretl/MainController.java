@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
 public class MainController {
+
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
@@ -28,7 +29,7 @@ public class MainController {
     JenkinsService jenkinsService;
 
     @GetMapping("/ping")
-    public ResponseEntity<String>  ping() {
+    public ResponseEntity<String> ping() {
         logger.info("ping");
         return new ResponseEntity<String>("gretl-job-starter", HttpStatus.OK);
     }
@@ -37,14 +38,14 @@ public class MainController {
     public ResponseEntity<?> startGretlJob(@RequestParam("user") String userName, @RequestParam("token") String token, @RequestParam("job") String jobName) {
         // Wir verwenden momentan immer Prod-GRETL-Jenkins.
         String gretlUrl = appConfig.getJenkinsUrl().stream()
-            .filter(g -> g.get("env").equalsIgnoreCase("prod"))
-            .findAny()
-            .map(g -> g.get("url"))
-            .map(g -> g.replace("${jobName}", jobName))
-            .orElseThrow();
+                .filter(g -> g.get("env").equalsIgnoreCase("prod"))
+                .findAny()
+                .map(g -> g.get("url"))
+                .map(g -> g.replace("${jobName}", jobName))
+                .orElseThrow();
         logger.debug("GRETL Jenkins url: {}", gretlUrl);
 
-        String encodedUserToken = Base64.getEncoder().encodeToString((userName+":"+token).getBytes());
+        String encodedUserToken = Base64.getEncoder().encodeToString((userName + ":" + token).getBytes());
         logger.debug("Encoded name and token: {}", encodedUserToken);
 
         JenkinsRequestResult result = jenkinsService.makeHttpRequest(gretlUrl, encodedUserToken);
@@ -54,13 +55,16 @@ public class MainController {
             String errorMessage;
             switch (result.statusCode()) {
                 case 401:   // Unauthorized
-                    errorMessage = "FEHLER: Keine Berechtigung! Bitte überprüfen Sie Benutzernamen und API-Token. \n\nBei Fragen wenden Sie sich bitte ans AGI.";
+                    errorMessage = "<p><strong>FEHLER</strong> Keine Berechtigung! Bitte überprüfen Sie <em>Benutzernamen</em> und <em>API-Token</em>. "
+                            + "<br/><br/>Bei Fragen wenden Sie sich bitte ans <a href=\"https://agi.so.ch\" target=\"_blank\">Amt für Geoinformation</a>.</p>";
                     break;
                 case 404:   // Not Found
-                    errorMessage = "FEHLER: Jobname unbekannt! Bitte überprüfen Sie den Jobnamen. \n\nBei Fragen wenden Sie sich bitte ans AGI.";
+                    errorMessage = "<p><strong>FEHLER</strong> Jobname unbekannt! Bitte überprüfen Sie den <em>Jobnamen</em>. "
+                            + "<br/><br/>Bei Fragen wenden Sie sich bitte ans <a href=\"https://agi.so.ch\" target=\"_blank\">Amt für Geoinformation</a>.</p>";
                     break;
                 default:
-                    errorMessage = "FEHLER: Job konnte nicht gestartet werden. \n\nBitte wenden Sie sich ans AGI.";
+                    errorMessage = "<p><strong>FEHLER</strong> Job konnte nicht gestartet werden!"
+                            + "<br/><br/>Bitte wenden Sie sich ans <a href=\"https://agi.so.ch\" target=\"_blank\">Amt für Geoinformation</a>.</p>";
                     break;
             }
 
