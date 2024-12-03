@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class JenkinsService {
+
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     private HttpClient httpClient;
@@ -21,7 +22,7 @@ public class JenkinsService {
     public JenkinsService(HttpClient httpClient) {
         this.httpClient = httpClient;
     }
-    
+
     public JenkinsRequestResult makeHttpRequest(String url, String encodedUserToken) {
         URI requestUri = URI.create(url);
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
@@ -30,7 +31,7 @@ public class JenkinsService {
                 .timeout(Duration.ofSeconds(30L))
                 .setHeader("Authorization", "Basic " + encodedUserToken)
                 .build();
-       
+
         HttpResponse<String> response;
         try {
             response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -39,13 +40,16 @@ public class JenkinsService {
             throw new IllegalStateException(e.getMessage());
         }
         int statusCode = response.statusCode();
-        
-        String location = response.headers().firstValue("location").get();
-        logger.debug("Location header: {}", location);
-        
-        String locationUri = requestUri.toString().substring(0, requestUri.toString().lastIndexOf("/"));
-        logger.debug("Location url: {}", locationUri);
 
+        String locationUri ="";
+        if (statusCode == 201) {
+            String location = response.headers().firstValue("location").get();
+            logger.debug("Location header: {}", location);
+
+            locationUri = requestUri.toString().substring(0, requestUri.toString().lastIndexOf("/"));
+            logger.debug("Location url: {}", locationUri);
+
+        }
         return new JenkinsRequestResult(url, statusCode, locationUri);
     }
 }
