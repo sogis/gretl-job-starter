@@ -40,7 +40,15 @@ jobs:
           LOG_LEVEL_APP: INFO
         run: |
           ./gradlew clean test
-          ./gradlew nativeBuild
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            ln -s gcc .github/diagnostics/cc
+            export PATH="$GITHUB_WORKSPACE/.github/diagnostics:$PATH"
+          fi
+          status=0
+          ./gradlew nativeBuild || status=$?
+          if [[ -f "$RUNNER_TEMP/native-link.log" ]]; then cat "$RUNNER_TEMP/native-link.log"; fi
+          if [[ -f build/native/nativeCompile/jobstarter ]]; then readelf -n build/native/nativeCompile/jobstarter; fi
+          exit "$status"
 
       - uses: actions/upload-artifact@v6
         if: ${{ failure() }}
@@ -101,7 +109,11 @@ jobs:
   verify-native:
     if: github.event_name == 'pull_request' || github.ref != 'refs/heads/main'
     env: *native-env
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
     steps: *native-steps

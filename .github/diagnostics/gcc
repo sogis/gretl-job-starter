@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -e
+output=
+previous=
+for arg; do
+  if [[ "$previous" == -o ]]; then output=$arg; fi
+  previous=$arg
+done
+if [[ "${output##*/}" != jobstarter ]]; then exec /usr/bin/gcc "$@"; fi
+
+map="$RUNNER_TEMP/native-link.map"
+{
+  printf '%q ' /usr/bin/gcc "$@"
+  printf '\n'
+  /usr/bin/gcc -### "$@"
+  for arg; do
+    if [[ "$arg" == *.o && -f "$arg" ]]; then readelf -n "$arg"; fi
+  done
+} >>"$RUNNER_TEMP/native-link.log" 2>&1
+/usr/bin/gcc "$@" "-Wl,-Map=$map"
+{
+  readelf -n "$output"
+  rg -A 4 -B 1 'property|\.note.gnu.property' "$map" | head -140
+  /usr/bin/gcc -dumpfullversion
+  ld --version | head -1
+} >>"$RUNNER_TEMP/native-link.log" 2>&1
