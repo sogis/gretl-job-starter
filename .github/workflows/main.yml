@@ -17,7 +17,7 @@ jobs:
       BUILD_NUMBER: ${{ github.run_number }}
       VERSION: 0.0.${{ github.run_number }}
 
-    runs-on: ubuntu-24.04
+    runs-on: &native-runner ubuntu-24.04
 
     permissions:
       contents: read
@@ -40,15 +40,7 @@ jobs:
           LOG_LEVEL_APP: INFO
         run: |
           ./gradlew clean test
-          ln -s gcc .github/diagnostics/cc
-          export PATH="$GITHUB_WORKSPACE/.github/diagnostics:$PATH"
-          status=0
-          ./gradlew nativeBuild || status=$?
-          if [[ -f build/native/nativeCompile/native-link.log ]]; then
-            cat build/native/nativeCompile/native-link.log
-            rm build/native/nativeCompile/native-link.{log,map}
-          fi
-          exit "$status"
+          ./gradlew nativeBuild
 
       - uses: actions/upload-artifact@v6
         if: ${{ failure() }}
@@ -125,11 +117,7 @@ jobs:
   verify-native:
     if: github.event_name == 'pull_request' || github.ref != 'refs/heads/main'
     env: *native-env
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, ubuntu-24.04]
-    runs-on: ${{ matrix.os }}
+    runs-on: *native-runner
     permissions:
       contents: read
     steps: *native-steps
