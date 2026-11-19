@@ -17,7 +17,7 @@ jobs:
       BUILD_NUMBER: ${{ github.run_number }}
       VERSION: 0.0.${{ github.run_number }}
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     permissions:
       contents: read
@@ -40,14 +40,14 @@ jobs:
           LOG_LEVEL_APP: INFO
         run: |
           ./gradlew clean test
-          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
-            ln -s gcc .github/diagnostics/cc
-            export PATH="$GITHUB_WORKSPACE/.github/diagnostics:$PATH"
-          fi
+          ln -s gcc .github/diagnostics/cc
+          export PATH="$GITHUB_WORKSPACE/.github/diagnostics:$PATH"
           status=0
           ./gradlew nativeBuild || status=$?
-          if [[ -f "$RUNNER_TEMP/native-link.log" ]]; then cat "$RUNNER_TEMP/native-link.log"; fi
-          if [[ -f build/native/nativeCompile/jobstarter ]]; then readelf -n build/native/nativeCompile/jobstarter; fi
+          if [[ -f build/native/nativeCompile/native-link.log ]]; then
+            cat build/native/nativeCompile/native-link.log
+            rm build/native/nativeCompile/native-link.{log,map}
+          fi
           exit "$status"
 
       - uses: actions/upload-artifact@v6
@@ -58,6 +58,36 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
+
+      - name: Build AMD64 container for smoke test
+        uses: docker/build-push-action@v7
+        with:
+          platforms: linux/amd64
+          context: .
+          file: Dockerfile.native
+          pull: true
+          load: true
+          tags: gretl-job-starter:ci
+
+      - name: Install x86-64 user-mode emulator
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-user-static
+
+      - name: Smoke-test native container on x86-64-v2
+        shell: bash
+        run: |
+          readelf -n build/native/nativeCompile/jobstarter
+          id=$(docker run -d --user 1000830000:0 --read-only --tmpfs /tmp:rw,exec \
+            -p 127.0.0.1::8080 \
+            -v /usr/bin/qemu-x86_64-static:/qemu-x86_64-static:ro --entrypoint /qemu-x86_64-static \
+            gretl-job-starter:ci -cpu Nehalem ./application)
+          trap 'docker logs "$id"; docker rm -f "$id"' EXIT
+          url="http://$(docker port "$id" 8080/tcp)"
+          curl -fsS --max-time 3 --retry 20 --retry-all-errors --retry-max-time 45 \
+            "$url/actuator/health/readiness" | jq -e '.status == "UP"'
+          test "$(curl -fsS --max-time 3 "$url/ping")" = gretl-job-starter
+          curl -fsS --max-time 3 "$url/actuator/health/liveness" | jq -e '.status == "UP"'
 
       - name: Login to Docker Container Registry
         uses: docker/login-action@v4
@@ -74,15 +104,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build AMD64 container and publish on main
+      - name: Publish validated AMD64 build
+        if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && !env.ACT }}
         uses: docker/build-push-action@v7
         with:
           platforms: linux/amd64
           context: .
           file: Dockerfile.native
-          pull: true
-          load: ${{ github.event_name == 'pull_request' }}
-          push: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && !env.ACT }}
+          push: true
           tags: |
             ${{ env.DOCKER_ACCOUNT }}/${{ env.DOCKER_REPO }}:latest
             ${{ env.DOCKER_ACCOUNT }}/${{ env.DOCKER_REPO }}:${{ env.VERSION }}
@@ -92,19 +121,6 @@ jobs:
             ghcr.io/${{ env.DOCKER_ACCOUNT }}/${{ env.DOCKER_REPO }}:${{ env.VERSION }}
             ghcr.io/${{ env.DOCKER_ACCOUNT }}/${{ env.DOCKER_REPO }}:0.0
             ghcr.io/${{ env.DOCKER_ACCOUNT }}/${{ env.DOCKER_REPO }}:0
-
-      - name: Smoke-test native container
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          id=$(docker run -d --user 1000830000:0 --read-only --tmpfs /tmp:rw,exec \
-            -p 127.0.0.1::8080 "$DOCKER_ACCOUNT/$DOCKER_REPO:latest")
-          trap 'docker logs "$id"; docker rm -f "$id"' EXIT
-          url="http://$(docker port "$id" 8080/tcp)"
-          curl -fsS --max-time 3 --retry 20 --retry-all-errors --retry-max-time 45 \
-            "$url/actuator/health/readiness" | jq -e '.status == "UP"'
-          test "$(curl -fsS --max-time 3 "$url/ping")" = gretl-job-starter
-          curl -fsS --max-time 3 "$url/actuator/health/liveness" | jq -e '.status == "UP"'
 
   verify-native:
     if: github.event_name == 'pull_request' || github.ref != 'refs/heads/main'
