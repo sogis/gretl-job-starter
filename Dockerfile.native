@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.9-1795001629
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.9
 
 WORKDIR /app
 COPY --chown=0:0 --chmod=0555 build/native/nativeCompile/jobstarter ./application
